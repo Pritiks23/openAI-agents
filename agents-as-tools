@@ -1,0 +1,86 @@
+# Orchestrator-> subagent example
+import asyncio
+from agents import Agent, ItemHelpers, MessageOutputItem, Runner, trace
+from examples.auto_mode import input_with_fallback
+
+"""
+This example demonstrates the agents-as-tools pattern in a developer workflow:
+1. The orchestrator receives a user-submitted code snippet.
+2. It chooses which agents (tools) to run: linting, formatting, and security checks.
+3. Each agent processes the code snippet and returns a result.
+4. The synthesizer agent inspects all outputs and produces a final enhanced, ready-to-commit code snippet.
+"""
+
+# Individual tool agents
+lint_agent = Agent(
+    name="lint_agent",
+    instructions="Analyze the provided Python code for linting issues and suggest corrections.",
+    handoff_description="A Python linter tool",
+)
+
+format_agent = Agent(
+    name="format_agent",
+    instructions="Reformat the Python code according to PEP8 standards.",
+    handoff_description="A Python code formatter",
+)
+
+security_agent = Agent(
+    name="security_agent",
+    instructions="Analyze the Python code for potential security vulnerabilities and suggest fixes.",
+    handoff_description="A Python security checker",
+)
+
+# Orchestrator agent that chooses which tools to run
+orchestrator_agent = Agent(
+    name="orchestrator_agent",
+    instructions=(
+        "You are a code improvement orchestrator. "
+        "Based on the user's request, decide which tools to call: linting, formatting, or security checks. "
+        "You never modify the code yourself; you always use the provided tools."
+    ),
+    tools=[
+        lint_agent.as_tool(
+            tool_name="lint_code",
+            tool_description="Analyze Python code for linting issues",
+        ),
+        format_agent.as_tool(
+            tool_name="format_code",
+            tool_description="Format Python code according to PEP8",
+        ),
+        security_agent.as_tool(
+            tool_name="check_security",
+            tool_description="Check Python code for security vulnerabilities",
+        ),
+    ],
+)
+
+# Synthesizer agent combines outputs
+synthesizer_agent = Agent(
+    name="synthesizer_agent",
+    instructions="Inspect all outputs from the tools, apply any suggested improvements, and return a final enhanced code snippet.",
+)
+
+async def main():
+    user_code = input_with_fallback(
+        "Paste your Python code snippet for improvement: ",
+        "def add(a,b): return a+b",
+    )
+
+    # Run the orchestration in a single trace
+    with trace("Code improvement orchestration"):
+        orchestrator_result = await Runner.run(orchestrator_agent, user_code)
+
+        for item in orchestrator_result.new_items:
+            if isinstance(item, MessageOutputItem):
+                text = ItemHelpers.text_message_output(item)
+                if text:
+                    print(f"  - Tool step output: {text}")
+
+        synthesizer_result = await Runner.run(
+            synthesizer_agent, orchestrator_result.to_input_list()
+        )
+
+    print(f"\n\nFinal enhanced code:\n{synthesizer_result.final_output}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
