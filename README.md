@@ -14,9 +14,6 @@ Each agent has a clear, specialized role, such as generating code, validating it
 - Multi-agent coordination → complex workflows handled reliably  
 - Predictable outputs → deterministic flow ensures the same result every run  
 
-**Explore it:**  
-- `story_outline_agent` → generates story outlines  
-- `orchestrator_agent` → chooses translation agents as tools  
 
 ---
 
@@ -31,7 +28,6 @@ Deterministic flows ensure that given the same input, the workflow produces the 
 - Makes debugging and testing easier  
 
 **Explore it:**  
-- Story & workout examples: outputs are checked before proceeding  
 - Code snippet pipeline: linting, formatting, and security validation are required before synthesis  
 
 ---
